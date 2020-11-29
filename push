@@ -1,0 +1,9 @@
+#!/bin/sh
+
+cat << EOF > generate.go
+package main
+
+//go:generate go-bindata-assetfs -nomemcopy $(bfs assets -type d|xargs)
+EOF
+
+go generate && env GOOS=solaris GOARCH=amd64 go build -v && rsync novncproxy minerva:/zones/novncproxy/ && rm -f novncproxy
