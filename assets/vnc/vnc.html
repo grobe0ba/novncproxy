@@ -149,11 +149,11 @@
 
         // Build the websocket URL used to connect
 
-	url = "wss://" + window.location.hostname + "/ws?port=" + readQueryVariable('port', '')
+	let url = "wss://" + window.location.hostname + "/ws?port=" + readQueryVariable('port', '') + "&host=" + readQueryVariable('host', window.location.hostname)
 
         // Creating a new RFB object will start a new connection
         rfb = new RFB(document.getElementById('screen'), url,
-                      { credentials: { password: password } });
+                      { credentials: { password: "" } });
 
         // Add listeners to important events from the RFB module
         rfb.addEventListener("connect",  connectedToServer);
