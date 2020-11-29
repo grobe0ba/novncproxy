@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"flag"
 	"html/template"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"os/exec"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/grobe0ba/novncproxy/vm"
-	//"github.com/gorilla/websocket"
 )
 
 func getVMs() []vm.VM {
@@ -112,7 +114,59 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	var (
+		upg    websocket.Upgrader
+		conn   *websocket.Conn
+		remote net.Conn
+		host   string
+		port   string
+		rdr    io.Reader
+		wrt    io.WriteCloser
+		e      error
+	)
+
+	upg.ReadBufferSize = 1
+	upg.WriteBufferSize = 1
+
+	if port = r.FormValue("port"); port == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Println("Connection port not specified by client " + r.URL.String())
+		return
+	}
+
+	if host = r.FormValue("host"); host == "" {
+		host = r.Host
+	}
+
+	conn, e = upg.Upgrade(w, r, nil)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+	defer conn.Close()
+
+	remote, e = net.Dial("tcp", net.JoinHostPort(host, port))
+	if e != nil {
+		log.Println(e)
+		return
+	}
+	defer remote.Close()
+
+	_, rdr, e = conn.NextReader()
+	if e != nil {
+		log.Println(e)
+		return
+	}
+
+	wrt, e = conn.NextWriter(websocket.BinaryMessage)
+	if e != nil {
+		log.Println(e)
+		return
+	}
+	defer wrt.Close()
+
+	go cat(rdr, remote)
+	cat(remote, wrt)
 }
 
 func main() {
