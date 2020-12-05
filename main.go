@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"html/template"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -120,13 +119,11 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		remote net.Conn
 		host   string
 		port   string
-		rdr    io.Reader
-		wrt    io.WriteCloser
 		e      error
 	)
 
-	upg.ReadBufferSize = 1
-	upg.WriteBufferSize = 1
+	upg.ReadBufferSize = 1024
+	upg.WriteBufferSize = 1024
 
 	if port = r.FormValue("port"); port == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -152,21 +149,8 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer remote.Close()
 
-	_, rdr, e = conn.NextReader()
-	if e != nil {
-		log.Println(e)
-		return
-	}
-
-	wrt, e = conn.NextWriter(websocket.BinaryMessage)
-	if e != nil {
-		log.Println(e)
-		return
-	}
-	defer wrt.Close()
-
-	go cat(rdr, remote)
-	cat(remote, wrt)
+	go toClient(conn, remote)
+	fromClient(conn, remote)
 }
 
 func main() {
