@@ -1023,6 +1023,8 @@ const UI = {
         }
         url += '/' + path;
 
+	url = "wss://minerva.pulpie.xyz/ws?host=" + host + "&port=" + port
+
         UI.rfb = new RFB(document.getElementById('noVNC_container'), url,
                          { shared: UI.getSetting('shared'),
                            repeaterID: UI.getSetting('repeaterID'),
