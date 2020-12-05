@@ -10,7 +10,7 @@ import (
 func fromClient(c *websocket.Conn, w io.Writer) {
 	var (
 		buf []byte
-		e  error
+		e   error
 	)
 
 	buf = make([]byte, 1024)
