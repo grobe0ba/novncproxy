@@ -6,4 +6,4 @@ package main
 //go:generate go-bindata-assetfs -nomemcopy $(bfs assets -type d|xargs)
 EOF
 
-go generate && env GOOS=illumos GOARCH=amd64 go build -v && rsync novncproxy minerva:/zones/novncproxy/ && rm -f novncproxy
+go generate && env GOOS=illumos GOARCH=amd64 go build -v && rsync novncproxy minerva:/zones/novncproxy/ && rm -f novncproxy bindata.go
