@@ -4,7 +4,7 @@
 	</head>
 	<body>
 		<table border=0>
-			{{ range . }} <tr><td> {{- .UUID -}} </td><td><a href="/vnc/vnc.html?port= {{- .VNC.Port -}}"> {{- .Alias -}} </a></td></tr> {{ end }}
+			{{ range . }} <tr><td><a href="/vnc/vnc.html?vm= {{- . -}}"> {{- . -}} </a></td></tr> {{ end }}
 		</table>
 	</body>
 </html>

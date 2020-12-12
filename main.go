@@ -7,73 +7,28 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os/exec"
-	"strings"
+	"os"
+	"path/filepath"
 
 	"github.com/gorilla/websocket"
-	"github.com/grobe0ba/novncproxy/vm"
 )
 
-func getVMs() []vm.VM {
+func getVMs() []string {
 	var (
-		buf        *bytes.Buffer
-		cmd        *exec.Cmd
-		cmdOutput  []byte
-		vmUUIDList []string
-		vmList     []vm.VM
-		line       string
-		e          error
+		zonesDir        *os.File
+		zones []string
+		e               error
 	)
 
-	cmd = exec.Command("vmadm", "lookup", "state=running", "brand=kvm")
-
-	cmdOutput, e = cmd.Output()
-	if e != nil {
+	if zonesDir, e = os.Open("/zones"); e != nil {
 		log.Fatal(e)
 	}
 
-	buf = bytes.NewBuffer(cmdOutput)
-	for line, e = buf.ReadString('\n'); e == nil; line, e = buf.ReadString('\n') {
-		vmUUIDList = append(vmUUIDList, strings.TrimSuffix(line, "\n"))
-	}
-
-	cmd = exec.Command("vmadm", "lookup", "state=running", "brand=bhyve")
-
-	cmdOutput, e = cmd.Output()
-	if e != nil {
+	if zones, e = zonesDir.Readdirnames(-1); e != nil {
 		log.Fatal(e)
 	}
 
-	buf = bytes.NewBuffer(cmdOutput)
-	for line, e = buf.ReadString('\n'); e == nil; line, e = buf.ReadString('\n') {
-		vmUUIDList = append(vmUUIDList, strings.TrimSuffix(line, "\n"))
-	}
-
-	for _, VM := range vmUUIDList {
-		var nVM [2]vm.VM
-
-		cmd = exec.Command("vmadm", "info", VM)
-		cmdOutput, e = cmd.Output()
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		nVM[0] = vm.FromJSON(cmdOutput)
-
-		cmd = exec.Command("vmadm", "get", VM)
-		cmdOutput, e = cmd.Output()
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		nVM[1] = vm.FromJSON(cmdOutput)
-		nVM[0].UUID = nVM[1].UUID
-		nVM[0].Alias = nVM[1].Alias
-
-		vmList = append(vmList, nVM[0])
-	}
-
-	return vmList
+	return zones
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +36,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		buf           *bytes.Buffer
 		templateBytes []byte
 		t             *template.Template
-		vmList        []vm.VM
+		vmList        []string
 		e             error
 	)
 
@@ -117,22 +72,17 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		upg    websocket.Upgrader
 		conn   *websocket.Conn
 		remote net.Conn
-		host   string
-		port   string
+		vm     string
 		e      error
 	)
 
 	upg.ReadBufferSize = 1024
 	upg.WriteBufferSize = 1024
 
-	if port = r.FormValue("port"); port == "" {
+	if vm = r.FormValue("vm"); vm == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("Connection port not specified by client " + r.URL.String())
 		return
-	}
-
-	if host = r.FormValue("host"); host == "" {
-		host = r.Host
 	}
 
 	conn, e = upg.Upgrade(w, r, nil)
@@ -142,7 +92,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	remote, e = net.Dial("tcp", net.JoinHostPort(host, port))
+	remote, e = net.Dial("unix", filepath.Join("/zones", vm, "root/tmp/vm.vnc"))
 	if e != nil {
 		log.Println(e)
 		return

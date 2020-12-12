@@ -149,7 +149,7 @@
 
         // Build the websocket URL used to connect
 
-	let url = "wss://" + window.location.hostname + "/ws?port=" + readQueryVariable('port', '') + "&host=" + readQueryVariable('host', window.location.hostname)
+	let url = "wss://" + window.location.hostname + "/ws?vm=" + readQueryVariable('vm', '')
 
         // Creating a new RFB object will start a new connection
         rfb = new RFB(document.getElementById('screen'), url,
