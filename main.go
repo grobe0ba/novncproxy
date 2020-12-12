@@ -85,19 +85,20 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	remote, e = net.Dial("unix", filepath.Join("/zones", vm, "root/tmp/vm.vnc"))
+	if e != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(e)
+		return
+	}
+	defer remote.Close()
+
 	conn, e = upg.Upgrade(w, r, nil)
 	if e != nil {
 		log.Println(e)
 		return
 	}
 	defer conn.Close()
-
-	remote, e = net.Dial("unix", filepath.Join("/zones", vm, "root/tmp/vm.vnc"))
-	if e != nil {
-		log.Println(e)
-		return
-	}
-	defer remote.Close()
 
 	go toClient(conn, remote)
 	fromClient(conn, remote)
