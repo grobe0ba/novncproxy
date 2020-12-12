@@ -3,21 +3,26 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"html/template"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 )
 
+const ENV = "NOVNCPROXY_DAEMON"
+const UUID = "a7fad6e2-7484-415c-a254-b28f9218ae8e"
+
 func getVMs() []string {
 	var (
-		zonesDir        *os.File
-		zones []string
-		e               error
+		zonesDir *os.File
+		zones    []string
+		e        error
 	)
 
 	if zonesDir, e = os.Open("/zones"); e != nil {
@@ -105,13 +110,42 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	var (
-		certFile *string
-		keyFile  *string
+		logFileFlag *string
+		logFile     *os.File
+		certFile    *string
+		keyFile     *string
+		pa          *syscall.ProcAttr
+		argv0       string
+		e           error
 	)
+
+	if os.Getenv(ENV) != UUID {
+		os.Stdin.Close()
+		os.Stdout.Close()
+		os.Stderr.Close()
+
+		pa = &syscall.ProcAttr{Env: []string{fmt.Sprintf("%s=%s", ENV, UUID)}}
+
+		if argv0, e = os.Executable(); e != nil {
+			log.Fatal(e)
+		}
+
+		if _, e = syscall.ForkExec(argv0, os.Args, pa); e != nil {
+			log.Fatal(e)
+			os.Exit(0)
+		}
+	}
 
 	certFile = flag.String("cert", "novncproxy.pem", "TLS certificate PEM file")
 	keyFile = flag.String("key", "novncproxy-key.pem", "TLS key PEM file")
+	logFileFlag = flag.String("log", "/tmp/novncproxy.log", "Log file")
 	flag.Parse()
+
+	if logFile, e = os.Open(*logFileFlag); e != nil {
+		log.Fatal(e)
+	}
+
+	log.SetOutput(logFile)
 
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/ws", wsHandler)
