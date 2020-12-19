@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"html/template"
 	"log"
 	"net"
@@ -114,38 +113,43 @@ func main() {
 		logFile     *os.File
 		certFile    *string
 		keyFile     *string
+		postFork *string
 		pa          *syscall.ProcAttr
 		argv0       string
 		e           error
 	)
 
-	if os.Getenv(ENV) != UUID {
+	certFile = flag.String("cert", "novncproxy.pem", "TLS certificate PEM file")
+	keyFile = flag.String("key", "novncproxy-key.pem", "TLS key PEM file")
+	logFileFlag = flag.String("log", "/tmp/novncproxy.log", "Log file")
+	postFork = flag.String("postfork", "", "internal use only")
+	flag.Parse()
+
+	if logFile, e = os.Create(*logFileFlag); e != nil {
+		log.Fatal(e)
+	}
+
+	log.SetOutput(logFile)
+
+
+	if *postFork != UUID {
 		os.Stdin.Close()
 		os.Stdout.Close()
 		os.Stderr.Close()
 
-		pa = &syscall.ProcAttr{Env: []string{fmt.Sprintf("%s=%s", ENV, UUID)}}
+		pa = &syscall.ProcAttr{}
 
 		if argv0, e = os.Executable(); e != nil {
 			log.Fatal(e)
 		}
 
-		if _, e = syscall.ForkExec(argv0, os.Args, pa); e != nil {
+		if _, e = syscall.ForkExec(argv0, append(os.Args, "-postfork", UUID), pa); e != nil {
 			log.Fatal(e)
+			os.Exit(1)
+		} else {
 			os.Exit(0)
 		}
 	}
-
-	certFile = flag.String("cert", "novncproxy.pem", "TLS certificate PEM file")
-	keyFile = flag.String("key", "novncproxy-key.pem", "TLS key PEM file")
-	logFileFlag = flag.String("log", "/tmp/novncproxy.log", "Log file")
-	flag.Parse()
-
-	if logFile, e = os.Open(*logFileFlag); e != nil {
-		log.Fatal(e)
-	}
-
-	log.SetOutput(logFile)
 
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/ws", wsHandler)
