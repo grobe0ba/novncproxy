@@ -1,0 +1,5 @@
+#!/usr/bin/sh
+
+WORKDIR=/opt/novncproxy
+
+exec "${WORKDIR}/novncproxy" -cert "${WORKDIR}/novncproxy.pem" -key "${WORKDIR}/novncproxy-key.pem" &
