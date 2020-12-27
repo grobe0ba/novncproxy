@@ -7,28 +7,46 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
 
-func getVMs() []string {
+func getVMs() (vncZones []string) {
 	var (
-		zonesDir        *os.File
-		zones []string
-		e               error
+		buf       *bytes.Buffer
+		cmd       *exec.Cmd
+		cmdOutput []byte
+		allZones  []string
+		line      string
+		e         error
 	)
 
-	if zonesDir, e = os.Open("/zones"); e != nil {
-		log.Fatal(e)
+	cmd = exec.Command("zoneadm", "list", "-np")
+
+	if cmdOutput, e = cmd.Output(); e != nil {
+		log.Println(e)
+		return []string{}
 	}
 
-	if zones, e = zonesDir.Readdirnames(-1); e != nil {
-		log.Fatal(e)
+	buf = bytes.NewBuffer(cmdOutput)
+	for line, e = buf.ReadString('\n'); e == nil; line, e = buf.ReadString('\n') {
+		allZones = append(allZones, strings.TrimSuffix(line, "\n"))
 	}
 
-	return zones
+	for _, z := range allZones {
+		var fields []string
+
+		fields = strings.Split(z, ":")
+
+		if fields[5] == "kvm" || fields[5] == "bhyve" {
+			vncZones = append(vncZones, fields[1])
+		}
+	}
+
+	return
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
