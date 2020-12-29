@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"html/template"
 	"log"
 	"net"
@@ -123,18 +122,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	var (
-		certFile *string
-		keyFile  *string
-	)
-
-	certFile = flag.String("cert", "novncproxy.pem", "TLS certificate PEM file")
-	keyFile = flag.String("key", "novncproxy-key.pem", "TLS key PEM file")
-	flag.Parse()
-
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/ws", wsHandler)
 	http.Handle("/vnc/", http.FileServer(assetFS()))
 
-	log.Fatal(http.ListenAndServeTLS(":443", *certFile, *keyFile, nil))
+	log.Fatal(http.ListenAndServe("127.0.0.1:8200", nil))
 }
